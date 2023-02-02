@@ -1,10 +1,16 @@
 FROM golang:latest
 
-RUN go mod init main \
-  && go mod tidy \
-  && go build
+WORKDIR /app
+
+COPY go.mod ./
+COPY go.sum ./
+
+RUN go mod download
+
+COPY ./ ./
+
+RUN go build
 
 EXPOSE 1323
-
 
 CMD ["go", "run", "main.go"]
