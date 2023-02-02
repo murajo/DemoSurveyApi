@@ -1,8 +1,5 @@
 FROM golang:latest
 
-WORKDIR /app
-COPY ./app /app
-
 RUN go mod init main \
   && go mod tidy \
   && go build
