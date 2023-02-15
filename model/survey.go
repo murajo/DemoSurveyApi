@@ -1,6 +1,9 @@
 package model
 
 import (
+	"errors"
+	"fmt"
+
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -13,86 +16,81 @@ type Survey struct {
 }
 
 func GetAllSurveys() ([]*Survey, error) {
-	surveys := []*Survey{}
 	rows, err := db.Query("SELECT * FROM surveys")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get all survey: %w", err)
 	}
 	defer rows.Close()
+
+	surveys := []*Survey{}
 	for rows.Next() {
-		survey := &Survey{}
-		if err := rows.Scan(&survey.ID, &survey.Title, &survey.Question, &survey.Created, &survey.Updated); err != nil {
-			return nil, err
+		survey := Survey{}
+		err = rows.Scan(&survey.ID, &survey.Title, &survey.Question, &survey.Created, &survey.Updated)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan survey: %w", err)
 		}
-		surveys = append(surveys, survey)
+		surveys = append(surveys, &survey)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get all surveys: %w", err)
 	}
 	return surveys, nil
 }
 
-func GeSurveyById(surveyId string) ([]*Survey, error) {
-	surveys := []*Survey{}
-	query := "SELECT * FROM surveys"
-	if surveyId != "" {
-		query = query + " WHERE id = " + surveyId
+func GetSurveyById(surveyId string) (*Survey, error) {
+	if surveyId == "" {
+		return nil, errors.New("empty survey id")
 	}
-	rows, err := db.Query(query)
+	survey := Survey{}
+	err := db.QueryRow("SELECT * FROM surveys WHERE id=?", surveyId).
+		Scan(&survey.ID, &survey.Title, &survey.Question, &survey.Created, &survey.Updated)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get survey: %w", err)
 	}
-	defer rows.Close()
-	for rows.Next() {
-		survey := &Survey{}
-		if err := rows.Scan(&survey.ID, &survey.Title, &survey.Question, &survey.Created, &survey.Updated); err != nil {
-			return nil, err
-		}
-		surveys = append(surveys, survey)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return surveys, nil
+	return &survey, nil
 }
 
 func AddSurvey(survey *Survey) (int, error) {
-	stmt, err := db.Prepare("INSERT INTO surveys(title,question) VALUES(?,?)")
+	result, err := db.Exec("INSERT INTO surveys(title, question) VALUES(?,?)", survey.Title, survey.Question)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to add survey: %w", err)
 	}
-	defer stmt.Close()
-	rows, err := stmt.Exec(survey.Title, survey.Question)
+	surveyId, err := result.LastInsertId()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to get insert survey id: %w", err)
 	}
-	id, err := rows.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-	return int(id), nil
+	return int(surveyId), nil
 }
 
 func UpdateSurvey(survey *Survey) error {
-	stmt, err := db.Prepare("UPDATE surveys SET title = ?, question = ? WHERE id = ?")
+	result, err := db.Exec("UPDATE surveys SET title=?, question=? WHERE id=?", survey.Title, survey.Question, survey.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update survey: %w", err)
 	}
-	defer stmt.Close()
-	if _, err := stmt.Exec(survey.Title, survey.Question, survey.ID); err != nil {
-		return err
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to update survey: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("no update with id %d", survey.ID)
 	}
 	return nil
 }
 
-func DeleteSurvey(id string) error {
-	stmt, err := db.Prepare("DELETE FROM surveys WHERE id = ?")
-	if err != nil {
-		return err
+func DeleteSurvey(surveyId string) error {
+	if surveyId == "" {
+		return errors.New("empty survey id")
 	}
-	defer stmt.Close()
-	if _, err := stmt.Exec(id); err != nil {
-		return err
+	result, err := db.Exec("DELETE FROM surveys WHERE id=?", surveyId)
+	if err != nil {
+		return fmt.Errorf("failed to delete survey: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to delete survey: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("no survey found with id %s", surveyId)
 	}
 	return nil
 }
