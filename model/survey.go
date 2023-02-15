@@ -63,16 +63,9 @@ func AddSurvey(survey *Survey) (int, error) {
 }
 
 func UpdateSurvey(survey *Survey) error {
-	result, err := db.Exec("UPDATE surveys SET title=?, question=? WHERE id=?", survey.Title, survey.Question, survey.ID)
+	_, err := db.Exec("UPDATE surveys SET title=?, question=? WHERE id=?", survey.Title, survey.Question, survey.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update survey: %w", err)
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to update survey: %w", err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("no update with id %d", survey.ID)
 	}
 	return nil
 }

@@ -72,16 +72,9 @@ func AddSurveyItem(surveyItem *SurveyItem) (int, error) {
 }
 
 func UpdateSurveyItem(surveyItem *SurveyItem) error {
-	result, err := db.Exec("UPDATE survey_items SET text = ? WHERE id = ?", surveyItem.Text, surveyItem.ID)
+	_, err := db.Exec("UPDATE survey_items SET text = ? WHERE id = ?", surveyItem.Text, surveyItem.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update survey_item: %w", err)
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to update survey_item: %w", err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("no update with id %d", surveyItem.ID)
 	}
 	return nil
 }
